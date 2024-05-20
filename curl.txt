@@ -1,0 +1,1 @@
+curl -i -X POST https://api.dexcom.com/v2/oauth2/token -H Content-Type: application/x-www-form-urlencoded -d grant_type=authorization_code -d code=4a6bf47b120d015fd5aec3a93cd18485 -d redirect_uri=copilot://redirect -d client_id=7D5zQjLfewjC9R6xg93NB8PgXYcovLHU -d client_secret=IbmUWVflSQev1hlQ

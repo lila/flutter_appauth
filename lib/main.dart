@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math';
@@ -35,25 +36,22 @@ class _MyAppState extends State<MyApp> {
   String? _userInfo;
 
   // For a list of client IDs, go to https://demo.duendesoftware.com
-  final String _clientId = 'interactive.public';
-  final String _redirectUrl = 'com.duendesoftware.demo:/oauthredirect';
-  final String _issuer = 'https://demo.duendesoftware.com';
+  final String _clientId = '7D5zQjLfewjC9R6xg93NB8PgXYcovLHU';
+  final String _clientSecret = 'IbmUWVflSQev1hlQ';
+  final String _redirectUrl = 'copilot://redirect';
+  final String _issuer = 'https://api.dexcom.com';
   final String _discoveryUrl =
-      'https://demo.duendesoftware.com/.well-known/openid-configuration';
-  final String _postLogoutRedirectUrl = 'com.duendesoftware.demo:/';
+      '';
+  final String _postLogoutRedirectUrl = 'copilot:/';
   final List<String> _scopes = <String>[
-    'openid',
-    'profile',
-    'email',
     'offline_access',
-    'api'
   ];
 
   final AuthorizationServiceConfiguration _serviceConfiguration =
       const AuthorizationServiceConfiguration(
-    authorizationEndpoint: 'https://demo.duendesoftware.com/connect/authorize',
-    tokenEndpoint: 'https://demo.duendesoftware.com/connect/token',
-    endSessionEndpoint: 'https://demo.duendesoftware.com/connect/endsession',
+    authorizationEndpoint: 'https://api.dexcom.com/v2/oauth2/login',
+    tokenEndpoint: 'https://api.dexcom.com/v2/oauth2/token',
+    endSessionEndpoint: 'https://api.dexcom.com/v2/oauth2/endsession',
   );
 
   @override
@@ -182,7 +180,13 @@ class _MyAppState extends State<MyApp> {
       _setBusyState();
       final TokenResponse? result = await _appAuth.token(TokenRequest(
           _clientId, _redirectUrl,
-          refreshToken: _refreshToken, issuer: _issuer, scopes: _scopes));
+          clientSecret: _clientSecret,
+          refreshToken: _refreshToken, 
+          issuer: _issuer, 
+          scopes: _scopes,
+          allowInsecureConnections: true,
+          serviceConfiguration: _serviceConfiguration
+          ));
       _processTokenResponse(result);
       await _testApi(result);
     } catch (_) {
@@ -192,14 +196,22 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _exchangeCode() async {
     try {
+      debugPrint("exchange code");
+      debugPrint("client_id = $_clientId");
+      debugPrint("client_secret = $_clientSecret");
+      debugPrint("redirect_uri = $_redirectUrl");
+      debugPrint("code = $_authorizationCode");
+      debugPrint("code_verifier = $_codeVerifier");
+      debugPrint("nonce = $_nonce");
       _setBusyState();
       final TokenResponse? result = await _appAuth.token(TokenRequest(
           _clientId, _redirectUrl,
+          clientSecret: _clientSecret,
           authorizationCode: _authorizationCode,
-          discoveryUrl: _discoveryUrl,
-          codeVerifier: _codeVerifier,
-          nonce: _nonce,
-          scopes: _scopes));
+          grantType: "authorization_code",
+          allowInsecureConnections: true,
+          serviceConfiguration: _serviceConfiguration));
+      debugPrint(result.toString());
       _processTokenResponse(result);
       await _testApi(result);
     } catch (_) {
@@ -210,35 +222,25 @@ class _MyAppState extends State<MyApp> {
   Future<void> _signInWithNoCodeExchange() async {
     try {
       _setBusyState();
-      /* 
-        The discovery endpoint (_discoveryUrl) is used to find the
-        configuration. The code challenge generation can be checked here 
-        > https://github.com/MaikuB/flutter_appauth/search?q=challenge.
-        The code challenge is generated from the code verifier and only the
-        code verifier is included in the result. This because to get the token
-        in the method _exchangeCode (see above) we need only the code verifier
-        and the authorization code.
-        Code challenge is not used according to the spec
-        https://www.rfc-editor.org/rfc/rfc7636 page 9 section 4.5.
-      */
-      final AuthorizationResponse? result = await _appAuth.authorize(
-        AuthorizationRequest(_clientId, _redirectUrl,
-            discoveryUrl: _discoveryUrl, scopes: _scopes, loginHint: 'bob'),
-      );
-
-      /* 
-        or just use the issuer
-        var result = await _appAuth.authorize(
+    
+      debugPrint("calling authorize - no code");
+      var result = await _appAuth.authorize(
           AuthorizationRequest(
             _clientId,
             _redirectUrl,
-            issuer: _issuer,
             scopes: _scopes,
+            serviceConfiguration: _serviceConfiguration,
+            preferEphemeralSession: true,
+            allowInsecureConnections: true,
           ),
         );
-      */
+      
 
       if (result != null) {
+        debugPrint("authorization_code = ${result.authorizationCode}");
+        debugPrint("code_verifier = ${result.codeVerifier}");
+        debugPrint("nonce = ${result.nonce}");
+        
         _processAuthResponse(result);
       }
     } catch (_) {
@@ -274,6 +276,7 @@ class _MyAppState extends State<MyApp> {
     try {
       _setBusyState();
 
+      debugPrint("calling authorize");
       /*
         This shows that we can also explicitly specify the endpoints rather than
         getting from the details from the discovery document.
@@ -283,11 +286,16 @@ class _MyAppState extends State<MyApp> {
         AuthorizationTokenRequest(
           _clientId,
           _redirectUrl,
+          issuer: _issuer,
+          clientSecret: _clientSecret,
           serviceConfiguration: _serviceConfiguration,
           scopes: _scopes,
-          preferEphemeralSession: preferEphemeralSession,
+          preferEphemeralSession: true,
+          allowInsecureConnections: true,
         ),
       );
+      debugPrint("authorize done");
+      debugPrint(result.toString());
 
       /* 
         This code block demonstrates passing in values for the prompt
@@ -307,8 +315,10 @@ class _MyAppState extends State<MyApp> {
       */
 
       if (result != null) {
+        debugPrint(result.toString());
         _processAuthTokenResponse(result);
         await _testApi(result);
+
       }
     } catch (_) {
       _clearBusyState();

@@ -9,7 +9,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.duendesoftware.demo</string>
+				<string>copilot</string>
 			</array>
 		</dict>
 	</array>
